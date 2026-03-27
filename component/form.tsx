@@ -1,11 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+const FORM_DRAFT_KEY = "studentAdmissionFormDraft";
+const STEP_DRAFT_KEY = "studentAdmissionFormStep";
 
 export default function MultiStepForm() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -16,6 +20,35 @@ export default function MultiStepForm() {
     travelPurpose: "",
     budgetConfirmed: false,
   });
+
+  useEffect(() => {
+    try {
+      const savedForm = localStorage.getItem(FORM_DRAFT_KEY);
+      const savedStep = localStorage.getItem(STEP_DRAFT_KEY);
+
+      if (savedForm) {
+        const parsed = JSON.parse(savedForm);
+        setForm((prev) => ({ ...prev, ...parsed }));
+      }
+
+      if (savedStep) {
+        const parsedStep = Number(savedStep);
+        if (parsedStep >= 1 && parsedStep <= 4) {
+          setStep(parsedStep);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to restore form draft:", err);
+    } finally {
+      setIsDraftLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftLoaded) return;
+    localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(form));
+    localStorage.setItem(STEP_DRAFT_KEY, String(step));
+  }, [form, step, isDraftLoaded]);
 
   const next = () => {
     setError("");
@@ -49,6 +82,8 @@ export default function MultiStepForm() {
         body: JSON.stringify(form),
       });
       localStorage.setItem("formData", JSON.stringify(form));
+      localStorage.removeItem(FORM_DRAFT_KEY);
+      localStorage.removeItem(STEP_DRAFT_KEY);
       router.push("/thankyou");
     } catch (err) {
       setError("Submission failed. Try again later.");
